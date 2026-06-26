@@ -447,7 +447,9 @@
     <div id="filters">
       <div class="filter-group">
         <label>User Key:</label>
-        <input type="text" id="user-key" style="width: 150px; padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px;">
+        <select id="user-key" style="width: 150px; padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px;">
+          <option value="">Loading...</option>
+        </select>
         <button onclick="loadUserData()" style="padding: 4px 12px; border: 1px solid #3498db; background: white; color: #3498db; border-radius: 4px; cursor: pointer; font-size: 13px;">Load</button>
       </div>
 
@@ -471,9 +473,13 @@
     <div id="main-container">
       <div id="viz-panel">
         <div id="chart-container">
-          <svg id="swimlane-chart"></svg>
+          <div id="loading-indicator" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #7f8c8d;">
+            <div class="loading" style="width: 40px; height: 40px; border-width: 4px;"></div>
+            <p style="margin-top: 20px; font-size: 14px;">Loading journey data...</p>
+          </div>
+          <svg id="swimlane-chart" style="display: none;"></svg>
         </div>
-        <div id="legend">
+        <div id="legend" style="display: none;">
           <h3>Treatment Types</h3>
           <div class="legend-items" id="legend-items"></div>
         </div>
@@ -481,7 +487,7 @@
           Created by <strong>David Martin</strong> |
           Powered by <a href="https://d3js.org/" target="_blank" style="color: #3498db;">D3.js</a> &
           <a href="https://help-ai-backend.vercel.app" target="_blank" style="color: #3498db;">OpenAI</a> |
-          <a href="https://github.com/dbmartin00" target="_blank" style="color: #3498db;">GitHub</a>
+          <a href="https://github.com/dbmartin00/feature-flag-journey" target="_blank" style="color: #3498db;">GitHub</a>
         </div>
       </div>
 
@@ -550,7 +556,10 @@
     // Initialize
     async function init() {
       try {
-        // Set user key input to current value
+        // Load available user keys
+        await loadUserKeyOptions();
+
+        // Set user key dropdown to current value
         document.getElementById('user-key').value = getUserKey();
 
         await loadData();
@@ -558,8 +567,43 @@
         initializeFilters();
         renderVisualization();
         renderLegend();
+
+        // Hide loading indicator, show chart
+        document.getElementById('loading-indicator').style.display = 'none';
+        document.getElementById('swimlane-chart').style.display = 'block';
+        document.getElementById('legend').style.display = 'block';
       } catch (error) {
+        document.getElementById('loading-indicator').style.display = 'none';
         showError('Initialization failed: ' + error.message);
+      }
+    }
+
+    // Load available user keys from API
+    async function loadUserKeyOptions() {
+      try {
+        const response = await fetch(`${API_BASE_URL}?action=distinct-keys`);
+        const data = await response.json();
+
+        const dropdown = document.getElementById('user-key');
+        dropdown.innerHTML = '';
+
+        // Sort keys alphabetically, but put dmartin first
+        const keys = data.keys.sort((a, b) => {
+          if (a === 'dmartin') return -1;
+          if (b === 'dmartin') return 1;
+          return a.localeCompare(b);
+        });
+
+        keys.forEach(key => {
+          const option = document.createElement('option');
+          option.value = key;
+          option.textContent = key;
+          dropdown.appendChild(option);
+        });
+      } catch (error) {
+        // Fallback if distinct-keys fails
+        const dropdown = document.getElementById('user-key');
+        dropdown.innerHTML = '<option value="dmartin">dmartin</option>';
       }
     }
 
@@ -567,9 +611,14 @@
     async function loadUserData() {
       const userKey = document.getElementById('user-key').value.trim();
       if (!userKey) {
-        alert('Please enter a user key');
+        alert('Please select a user key');
         return;
       }
+
+      // Show loading indicator
+      document.getElementById('swimlane-chart').style.display = 'none';
+      document.getElementById('legend').style.display = 'none';
+      document.getElementById('loading-indicator').style.display = 'flex';
 
       // Update URL without reload
       const url = new URL(window.location);
