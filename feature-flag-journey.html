@@ -1,0 +1,1098 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Feature Flag Customer Journey</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+      background: #f5f7fa;
+      overflow: hidden;
+    }
+
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    #toolbar {
+      background: #2c3e50;
+      color: white;
+      padding: 15px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      z-index: 100;
+    }
+
+    #toolbar h1 {
+      font-size: 20px;
+      font-weight: 600;
+    }
+
+    #controls {
+      display: flex;
+      gap: 10px;
+    }
+
+    #controls button {
+      background: #3498db;
+      color: white;
+      border: none;
+      padding: 8px 15px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background 0.2s;
+    }
+
+    #controls button:hover {
+      background: #2980b9;
+    }
+
+    #controls button:disabled {
+      background: #7f8c8d;
+      cursor: not-allowed;
+    }
+
+    #filters {
+      background: white;
+      padding: 15px 20px;
+      border-bottom: 1px solid #ddd;
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .filter-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .filter-group label {
+      font-weight: 600;
+      font-size: 14px;
+      color: #2c3e50;
+    }
+
+    .checkbox-group {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .checkbox-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 13px;
+    }
+
+    input[type="date"] {
+      padding: 4px 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+
+    #filter-buttons {
+      margin-left: auto;
+      display: flex;
+      gap: 8px;
+    }
+
+    #filter-buttons button {
+      padding: 6px 12px;
+      border: 1px solid #3498db;
+      background: white;
+      color: #3498db;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    #filter-buttons button:hover {
+      background: #3498db;
+      color: white;
+    }
+
+    #main-container {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    #viz-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: auto;
+      padding: 20px;
+    }
+
+    #chart-container {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      padding: 20px;
+      flex: 1;
+      min-height: 600px;
+    }
+
+    #swimlane-chart {
+      width: 100%;
+      height: 100%;
+    }
+
+    #legend {
+      margin-top: 20px;
+      padding: 15px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    #legend h3 {
+      font-size: 14px;
+      margin-bottom: 10px;
+      color: #2c3e50;
+    }
+
+    .legend-items {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 15px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .legend-color {
+      width: 20px;
+      height: 20px;
+      border: 1px solid #ddd;
+      border-radius: 3px;
+    }
+
+    .legend-label {
+      font-size: 13px;
+      color: #34495e;
+    }
+
+    #analysis-panel {
+      width: 450px;
+      background: white;
+      border-left: 1px solid #ddd;
+      overflow-y: auto;
+      transition: margin-right 0.3s ease;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #analysis-panel.collapsed {
+      margin-right: -450px;
+    }
+
+    #analysis-content {
+      padding: 20px;
+      flex: 1;
+    }
+
+    .analysis-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #3498db;
+    }
+
+    .analysis-header h2 {
+      font-size: 18px;
+      color: #2c3e50;
+    }
+
+    .analysis-header button {
+      background: #3498db;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    .analysis-body {
+      line-height: 1.6;
+      color: #34495e;
+    }
+
+    .analysis-body h3 {
+      color: #2c3e50;
+      margin-top: 20px;
+      margin-bottom: 10px;
+      font-size: 16px;
+    }
+
+    .analysis-body h4 {
+      color: #34495e;
+      margin-top: 15px;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+
+    .analysis-body p {
+      margin-bottom: 10px;
+    }
+
+    .analysis-body ul {
+      margin-left: 20px;
+      margin-bottom: 10px;
+    }
+
+    .analysis-footer {
+      margin-top: 20px;
+      padding-top: 15px;
+      border-top: 1px solid #eee;
+      font-size: 12px;
+      color: #7f8c8d;
+    }
+
+    .placeholder {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      text-align: center;
+      color: #7f8c8d;
+      padding: 40px;
+    }
+
+    .tooltip {
+      position: absolute;
+      background: rgba(0, 0, 0, 0.9);
+      color: white;
+      padding: 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      line-height: 1.4;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s;
+      z-index: 1000;
+    }
+
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+    }
+
+    .modal-content {
+      background: white;
+      padding: 30px;
+      border-radius: 8px;
+      max-width: 500px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+    }
+
+    .modal-content h3 {
+      margin-bottom: 15px;
+      color: #2c3e50;
+    }
+
+    .modal-content p {
+      margin-bottom: 15px;
+      color: #34495e;
+      line-height: 1.5;
+    }
+
+    .modal-content input {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+
+    .modal-content textarea {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 12px;
+      font-family: monospace;
+    }
+
+    .modal-content button {
+      background: #3498db;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      margin-right: 10px;
+      margin-top: 10px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .modal-content button:hover {
+      background: #2980b9;
+    }
+
+    .modal-content button.secondary {
+      background: #95a5a6;
+    }
+
+    .modal-content button.secondary:hover {
+      background: #7f8c8d;
+    }
+
+    .loading {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 3px solid rgba(255,255,255,.3);
+      border-radius: 50%;
+      border-top-color: #fff;
+      animation: spin 1s ease-in-out infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .error-message {
+      background: #e74c3c;
+      color: white;
+      padding: 12px 20px;
+      border-radius: 4px;
+      margin: 10px 0;
+    }
+
+    .lane-bg {
+      fill: #f8f9fa;
+      stroke: #dee2e6;
+      stroke-width: 1;
+    }
+
+    .lane-label {
+      font-size: 12px;
+      font-weight: 600;
+      fill: #2c3e50;
+    }
+
+    .treatment-segment {
+      cursor: pointer;
+      transition: stroke-width 0.1s;
+    }
+
+    .treatment-segment:hover {
+      stroke: #000;
+      stroke-width: 2;
+    }
+
+    .axis {
+      font-size: 11px;
+    }
+
+    .axis path,
+    .axis line {
+      stroke: #95a5a6;
+    }
+
+    .axis text {
+      fill: #34495e;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <header id="toolbar">
+      <div>
+        <h1>Feature Flag Customer Journey</h1>
+        <p style="font-size: 13px; margin-top: 5px; opacity: 0.9;">Visualize user paths through feature flags with AI-powered insights</p>
+      </div>
+      <div id="controls">
+        <button id="analyze-btn" onclick="triggerAnalysis()">🤖 Analyze Journey</button>
+        <button id="toggle-panel" onclick="toggleAnalysisPanel()">◀ Toggle Analysis</button>
+        <button id="export-btn" onclick="exportSVG()">💾 Export SVG</button>
+      </div>
+    </header>
+
+    <div id="filters">
+      <div class="filter-group">
+        <label>User Key:</label>
+        <input type="text" id="user-key" style="width: 150px; padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px;">
+        <button onclick="loadUserData()" style="padding: 4px 12px; border: 1px solid #3498db; background: white; color: #3498db; border-radius: 4px; cursor: pointer; font-size: 13px;">Load</button>
+      </div>
+
+      <div class="filter-group">
+        <label>Feature Flags:</label>
+        <div id="flag-checkboxes" class="checkbox-group"></div>
+      </div>
+
+      <div class="filter-group">
+        <label>Start Date:</label>
+        <input type="date" id="start-date">
+        <span style="margin-left: 10px; font-size: 12px; color: #7f8c8d;">(Timeline extends to today)</span>
+      </div>
+
+      <div id="filter-buttons">
+        <button onclick="applyFilters()">Apply Filters</button>
+        <button onclick="resetFilters()">Reset</button>
+      </div>
+    </div>
+
+    <div id="main-container">
+      <div id="viz-panel">
+        <div id="chart-container">
+          <svg id="swimlane-chart"></svg>
+        </div>
+        <div id="legend">
+          <h3>Treatment Types</h3>
+          <div class="legend-items" id="legend-items"></div>
+        </div>
+        <div style="margin-top: 15px; padding: 10px; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); font-size: 12px; color: #7f8c8d; text-align: center;">
+          Created by <strong>David Martin</strong> |
+          Powered by <a href="https://d3js.org/" target="_blank" style="color: #3498db;">D3.js</a> &
+          <a href="https://help-ai-backend.vercel.app" target="_blank" style="color: #3498db;">OpenAI</a> |
+          <a href="https://github.com/dbmartin00" target="_blank" style="color: #3498db;">GitHub</a>
+        </div>
+      </div>
+
+      <div id="analysis-panel" class="collapsed">
+        <div id="analysis-content">
+          <div class="placeholder">
+            Click "Analyze Journey" to generate AI-powered insights about this customer's feature flag journey.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tooltip" id="tooltip"></div>
+
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script>
+    // Constants
+    const API_BASE_URL = 'https://buzll5mahpbnieaulgktc6lfxy0lpvir.lambda-url.us-west-2.on.aws';
+
+    // Get user key from URL parameter or use default
+    function getUserKey() {
+      const urlParams = new URLSearchParams(window.location.search);
+      return urlParams.get('key') || 'dmartin';
+    }
+
+    const API_URL = `${API_BASE_URL}?key=${getUserKey()}`;
+
+    const TREATMENT_COLORS = {
+      // Binary on/off states (reserved colors)
+      'on': '#3498db',        // Blue (on = active = blue)
+      'off': '#e74c3c',       // Red (off = inactive = red)
+
+      // Named multivariant colors (no red or blue)
+      'red': '#e67e22',       // Orange (treatment name "red" but different color)
+      'blue': '#9b59b6',      // Purple (treatment name "blue" but different color)
+      'green': '#2ecc71',
+      'lime': '#a4e02e',
+      'aqua': '#1abc9c',
+      'yellow': '#f1c40f',
+
+      // Other states
+      'control': '#7f8c8d',   // Gray
+      'v3': '#8e44ad'         // Deep purple
+    };
+
+    // Global state
+    let rawData = [];
+    let processedData = null;
+    let currentFilters = {
+      flags: new Set(),
+      startDate: null
+    };
+
+    // Browser compatibility check
+    if (typeof fetch === 'undefined' || typeof Promise === 'undefined' || typeof sessionStorage === 'undefined') {
+      document.body.innerHTML = `
+        <div style="padding: 40px; text-align: center;">
+          <h2>Browser Not Supported</h2>
+          <p>Please use a modern browser (Chrome, Firefox, Safari, Edge)</p>
+        </div>
+      `;
+      throw new Error('Unsupported browser');
+    }
+
+    // Initialize
+    async function init() {
+      try {
+        // Set user key input to current value
+        document.getElementById('user-key').value = getUserKey();
+
+        await loadData();
+        processedData = transformData(rawData);
+        initializeFilters();
+        renderVisualization();
+        renderLegend();
+      } catch (error) {
+        showError('Initialization failed: ' + error.message);
+      }
+    }
+
+    // Load data for a different user
+    async function loadUserData() {
+      const userKey = document.getElementById('user-key').value.trim();
+      if (!userKey) {
+        alert('Please enter a user key');
+        return;
+      }
+
+      // Update URL without reload
+      const url = new URL(window.location);
+      url.searchParams.set('key', userKey);
+      window.history.pushState({}, '', url);
+
+      // Reload data
+      location.reload();
+    }
+
+    // Data loading
+    async function loadData() {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+        const response = await fetch(API_URL, { signal: controller.signal });
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        rawData = await response.json();
+
+        if (!rawData || rawData.length === 0) {
+          throw new Error('No data received from API');
+        }
+
+        // Data loaded successfully
+      } catch (error) {
+        // Data fetch failed
+        showDataPasteDialog();
+        throw error;
+      }
+    }
+
+    // Data transformation
+    function transformData(data) {
+      // Group by flag
+      const flagMap = new Map();
+
+      data.forEach(record => {
+        if (!flagMap.has(record.splitname)) {
+          flagMap.set(record.splitname, []);
+        }
+        flagMap.get(record.splitname).push(record);
+      });
+
+      // Build hierarchical structure
+      const flags = [];
+      flagMap.forEach((records, flagName) => {
+        // Group by date
+        const dateMap = new Map();
+        records.forEach(record => {
+          if (!dateMap.has(record.day)) {
+            dateMap.set(record.day, []);
+          }
+          dateMap.get(record.day).push({
+            treatment: record.treatment,
+            count: parseInt(record.impression_count),
+            color: TREATMENT_COLORS[record.treatment] || '#34495e'
+          });
+        });
+
+        // Build timeline
+        const timeline = Array.from(dateMap.entries())
+          .map(([date, treatments]) => ({
+            date,
+            treatments
+          }))
+          .sort((a, b) => a.date.localeCompare(b.date));
+
+        // Calculate statistics
+        const totalImpressions = records.reduce((sum, r) => sum + parseInt(r.impression_count), 0);
+        const treatmentSummary = {};
+        records.forEach(r => {
+          treatmentSummary[r.treatment] = (treatmentSummary[r.treatment] || 0) + parseInt(r.impression_count);
+        });
+
+        flags.push({
+          name: flagName,
+          timeline,
+          totalImpressions,
+          treatmentSummary
+        });
+      });
+
+      // Sort flags by total impressions (most active first)
+      flags.sort((a, b) => b.totalImpressions - a.totalImpressions);
+
+      // Calculate global statistics
+      const allDates = [...new Set(data.map(d => d.day))].sort();
+      const dateExtent = [allDates[0], allDates[allDates.length - 1]];
+      const allTreatments = [...new Set(data.map(d => d.treatment))];
+      const maxDailyImpressions = Math.max(...data.map(d => parseInt(d.impression_count)));
+
+      return {
+        flags,
+        dateExtent,
+        allTreatments,
+        maxDailyImpressions
+      };
+    }
+
+    // Initialize filters
+    function initializeFilters() {
+      // Flag checkboxes
+      const flagCheckboxes = document.getElementById('flag-checkboxes');
+      processedData.flags.forEach(flag => {
+        const checkbox = document.createElement('div');
+        checkbox.className = 'checkbox-item';
+        checkbox.innerHTML = `
+          <input type="checkbox" id="flag-${flag.name}" value="${flag.name}" checked>
+          <label for="flag-${flag.name}">${flag.name}</label>
+        `;
+        flagCheckboxes.appendChild(checkbox);
+        currentFilters.flags.add(flag.name);
+      });
+
+      // Date range
+      document.getElementById('start-date').value = processedData.dateExtent[0];
+      currentFilters.startDate = processedData.dateExtent[0];
+    }
+
+    // Apply filters
+    function applyFilters() {
+      // Update flag filters
+      currentFilters.flags.clear();
+      document.querySelectorAll('#flag-checkboxes input:checked').forEach(cb => {
+        currentFilters.flags.add(cb.value);
+      });
+
+      // Update date filter
+      currentFilters.startDate = document.getElementById('start-date').value;
+
+      renderVisualization();
+    }
+
+    function resetFilters() {
+      // Reset flag checkboxes
+      document.querySelectorAll('#flag-checkboxes input').forEach(cb => {
+        cb.checked = true;
+      });
+      processedData.flags.forEach(flag => {
+        currentFilters.flags.add(flag.name);
+      });
+
+      // Reset dates
+      document.getElementById('start-date').value = processedData.dateExtent[0];
+      currentFilters.startDate = processedData.dateExtent[0];
+
+      renderVisualization();
+    }
+
+    // Render visualization
+    function renderVisualization() {
+      // Filter data (only by start date, x-axis will extend to today)
+      const filteredFlags = processedData.flags
+        .filter(flag => currentFilters.flags.has(flag.name))
+        .map(flag => ({
+          ...flag,
+          timeline: flag.timeline.filter(t => t.date >= currentFilters.startDate)
+        }));
+
+      if (filteredFlags.length === 0) {
+        showError('No data matches the current filters');
+        return;
+      }
+
+      // Clear previous chart
+      const container = document.getElementById('chart-container');
+      const svg = d3.select('#swimlane-chart');
+      svg.selectAll('*').remove();
+
+      // Dimensions
+      const containerWidth = container.clientWidth - 40;
+      const margin = { top: 20, right: 20, bottom: 60, left: 150 };
+      const laneHeight = 60;
+      const height = filteredFlags.length * laneHeight + margin.top + margin.bottom;
+
+      svg.attr('width', containerWidth)
+         .attr('height', height);
+
+      // Scales
+      const parseDate = d3.timeParse('%Y-%m-%d');
+      const today = parseDate('2026-06-26');
+      const dateExtent = [
+        parseDate(currentFilters.startDate),
+        today  // Always extend to today's date
+      ];
+
+      const xScale = d3.scaleTime()
+        .domain(dateExtent)
+        .range([margin.left, containerWidth - margin.right]);
+
+      const yScale = d3.scaleBand()
+        .domain(filteredFlags.map(f => f.name))
+        .range([margin.top, height - margin.bottom])
+        .padding(0.1);
+
+      const opacityScale = d3.scaleLinear()
+        .domain([1, processedData.maxDailyImpressions])
+        .range([0.4, 1.0])
+        .clamp(true);
+
+      // Calculate day width
+      const numDays = d3.timeDay.count(dateExtent[0], dateExtent[1]);
+      const dayWidth = (containerWidth - margin.left - margin.right) / numDays;
+
+      // Create tooltip
+      const tooltip = d3.select('#tooltip');
+
+      // Render lanes
+      const lanes = svg.selectAll('.lane')
+        .data(filteredFlags)
+        .join('g')
+          .attr('class', 'lane');
+
+      // Lane backgrounds
+      lanes.append('rect')
+        .attr('class', 'lane-bg')
+        .attr('x', margin.left)
+        .attr('y', d => yScale(d.name))
+        .attr('width', containerWidth - margin.left - margin.right)
+        .attr('height', yScale.bandwidth());
+
+      // Lane labels
+      lanes.append('text')
+        .attr('class', 'lane-label')
+        .attr('x', margin.left - 10)
+        .attr('y', d => yScale(d.name) + yScale.bandwidth() / 2)
+        .attr('text-anchor', 'end')
+        .attr('dominant-baseline', 'middle')
+        .text(d => d.name);
+
+      // Render treatment segments
+      lanes.each(function(laneData) {
+        const lane = d3.select(this);
+        const laneTop = yScale(laneData.name);
+        const laneHeightActual = yScale.bandwidth();
+
+        laneData.timeline.forEach(dayData => {
+          const dayDate = parseDate(dayData.date);
+          const dayX = xScale(dayDate);
+
+          // Calculate total impressions for this day
+          const totalImpressions = d3.sum(dayData.treatments, t => t.count);
+
+          // Stack treatments vertically
+          let yOffset = 0;
+          dayData.treatments.forEach(treatment => {
+            const segmentHeight = (treatment.count / totalImpressions) * laneHeightActual;
+
+            lane.append('rect')
+              .attr('class', 'treatment-segment')
+              .attr('x', dayX)
+              .attr('y', laneTop + yOffset)
+              .attr('width', Math.max(dayWidth - 1, 1))
+              .attr('height', segmentHeight)
+              .attr('fill', treatment.color)
+              .attr('opacity', opacityScale(treatment.count))
+              .on('mouseover', function(event) {
+                tooltip
+                  .style('opacity', 1)
+                  .html(`
+                    <strong>${laneData.name}</strong><br/>
+                    Treatment: ${treatment.treatment}<br/>
+                    Date: ${dayData.date}<br/>
+                    Impressions: ${treatment.count}
+                  `)
+                  .style('left', (event.pageX + 10) + 'px')
+                  .style('top', (event.pageY - 28) + 'px');
+              })
+              .on('mouseout', function() {
+                tooltip.style('opacity', 0);
+              });
+
+            yOffset += segmentHeight;
+          });
+        });
+      });
+
+      // X axis
+      const xAxis = d3.axisBottom(xScale)
+        .ticks(d3.timeWeek.every(2))
+        .tickFormat(d3.timeFormat('%b %d'));
+
+      svg.append('g')
+        .attr('class', 'axis')
+        .attr('transform', `translate(0, ${height - margin.bottom})`)
+        .call(xAxis)
+        .selectAll('text')
+          .attr('transform', 'rotate(-45)')
+          .style('text-anchor', 'end');
+
+      // Add zoom
+      const zoom = d3.zoom()
+        .scaleExtent([1, 10])
+        .translateExtent([[0, 0], [containerWidth, height]])
+        .on('zoom', zoomed);
+
+      svg.call(zoom);
+
+      function zoomed(event) {
+        const newXScale = event.transform.rescaleX(xScale);
+
+        svg.select('.axis').call(xAxis.scale(newXScale));
+
+        svg.selectAll('.treatment-segment')
+          .attr('x', function() {
+            const segment = d3.select(this);
+            const date = segment.datum ? parseDate(segment.datum.date) : null;
+            return date ? newXScale(date) : segment.attr('x');
+          })
+          .attr('width', Math.max((dayWidth * event.transform.k) - 1, 1));
+      }
+    }
+
+    // Render legend
+    function renderLegend() {
+      const legendItems = document.getElementById('legend-items');
+      legendItems.innerHTML = '';
+
+      processedData.allTreatments.forEach(treatment => {
+        const item = document.createElement('div');
+        item.className = 'legend-item';
+
+        const color = document.createElement('div');
+        color.className = 'legend-color';
+        color.style.backgroundColor = TREATMENT_COLORS[treatment] || '#34495e';
+
+        const label = document.createElement('span');
+        label.className = 'legend-label';
+        label.textContent = treatment;
+
+        item.appendChild(color);
+        item.appendChild(label);
+        legendItems.appendChild(item);
+      });
+    }
+
+    // OpenAI analysis via backend
+    async function triggerAnalysis() {
+      await analyzeJourney();
+    }
+
+    async function analyzeJourney() {
+      const analyzeBtn = document.getElementById('analyze-btn');
+      analyzeBtn.disabled = true;
+      analyzeBtn.innerHTML = '<span class="loading"></span> Analyzing...';
+
+      // Open panel
+      document.getElementById('analysis-panel').classList.remove('collapsed');
+
+      try {
+        const question = buildAnalysisQuestion();
+
+        const response = await fetch('https://help-ai-backend.vercel.app/ask', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            question: question
+          })
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          const errorMessage = errorData.error || 'Backend service error';
+          throw new Error(errorMessage);
+        }
+
+        const result = await response.json();
+        displayAnalysis(result.answer);
+
+      } catch (error) {
+        displayError(`Analysis failed: ${error.message}`);
+      } finally {
+        analyzeBtn.disabled = false;
+        analyzeBtn.innerHTML = '🤖 Analyze Journey';
+      }
+    }
+
+    function buildAnalysisQuestion() {
+      const summary = {
+        dateRange: `${processedData.dateExtent[0]} to ${processedData.dateExtent[1]}`,
+        totalFlags: processedData.flags.length,
+        totalImpressions: processedData.flags.reduce((sum, f) => sum + f.totalImpressions, 0),
+        flagDetails: processedData.flags.map(flag => ({
+          name: flag.name,
+          impressions: flag.totalImpressions,
+          treatments: Object.entries(flag.treatmentSummary)
+            .map(([t, count]) => `${t}: ${count}`)
+            .join(', '),
+          activeDays: flag.timeline.length,
+          dateRange: [flag.timeline[0].date, flag.timeline[flag.timeline.length-1].date]
+        }))
+      };
+
+      return `Analyze this customer's feature flag journey and provide insights about usage patterns, treatment distribution, experimentation strategy, anomalies, and recommendations.
+
+Summary:
+- Date Range: ${summary.dateRange}
+- Total Feature Flags: ${summary.totalFlags}
+- Total Impressions: ${summary.totalImpressions}
+
+Flag Details:
+${summary.flagDetails.map(f => `
+${f.name}: ${f.impressions} impressions, ${f.activeDays} active days (${f.dateRange[0]} to ${f.dateRange[1]}), treatments: ${f.treatments}
+`).join('\n')}
+
+Please provide analysis with markdown headers covering: usage patterns, treatment distribution, journey insights, anomalies, and recommendations.`;
+    }
+
+    function displayAnalysis(analysisText) {
+      const content = document.getElementById('analysis-content');
+
+      // Parse markdown-like formatting
+      const formatted = analysisText
+        .replace(/## (.*)/g, '<h3>$1</h3>')
+        .replace(/### (.*)/g, '<h4>$1</h4>')
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\n\n/g, '</p><p>')
+        .replace(/^(.)/gm, '<p>$1');
+
+      content.innerHTML = `
+        <div class="analysis-header">
+          <h2>AI Journey Analysis</h2>
+          <button onclick="regenerateAnalysis()">↻ Regenerate</button>
+        </div>
+        <div class="analysis-body">
+          ${formatted}
+        </div>
+        <div class="analysis-footer">
+          <small>Powered by OpenAI via help-ai-backend</small>
+        </div>
+      `;
+    }
+
+    async function regenerateAnalysis() {
+      await analyzeJourney();
+    }
+
+    function displayError(message) {
+      const content = document.getElementById('analysis-content');
+
+      content.innerHTML = `
+        <div class="error-message">
+          ${message}
+        </div>
+        <p style="margin-top: 20px;">
+          <button onclick="triggerAnalysis()">Try Again</button>
+        </p>
+      `;
+    }
+
+    // Toggle analysis panel
+    function toggleAnalysisPanel() {
+      document.getElementById('analysis-panel').classList.toggle('collapsed');
+    }
+
+    // Export SVG
+    function exportSVG() {
+      const svg = document.getElementById('swimlane-chart');
+      const serializer = new XMLSerializer();
+      const svgString = serializer.serializeToString(svg);
+
+      const blob = new Blob([svgString], { type: 'image/svg+xml' });
+      const url = URL.createObjectURL(blob);
+
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `feature-flags-${new Date().toISOString().split('T')[0]}.svg`;
+      link.click();
+
+      URL.revokeObjectURL(url);
+    }
+
+    // Show data paste dialog (fallback)
+    function showDataPasteDialog() {
+      const modal = document.createElement('div');
+      modal.className = 'modal-overlay';
+      modal.innerHTML = `
+        <div class="modal-content">
+          <h3>Data Loading Failed</h3>
+          <p>Unable to fetch data from API. Paste JSON data manually:</p>
+          <textarea id="data-paste" rows="10" placeholder='[{"key":"dmartin","splitname":"..."}]'></textarea>
+          <div>
+            <button onclick="loadPastedData()">Load Data</button>
+            <button class="secondary" onclick="location.reload()">Reload Page</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+
+      window.loadPastedData = () => {
+        try {
+          const pastedData = document.getElementById('data-paste').value;
+          rawData = JSON.parse(pastedData);
+          document.body.removeChild(modal);
+          init();
+        } catch (error) {
+          alert('Invalid JSON data: ' + error.message);
+        }
+      };
+    }
+
+    function showError(message) {
+      const container = document.getElementById('chart-container');
+      container.innerHTML = `
+        <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #e74c3c;">
+          <div style="text-align: center;">
+            <h3>Error</h3>
+            <p>${message}</p>
+          </div>
+        </div>
+      `;
+    }
+
+    // Start the app
+    init();
+  </script>
+</body>
+</html>
