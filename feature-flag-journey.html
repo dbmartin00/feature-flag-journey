@@ -464,6 +464,13 @@
         <span style="margin-left: 10px; font-size: 12px; color: #7f8c8d;">(Timeline extends to today)</span>
       </div>
 
+      <div class="filter-group">
+        <div class="checkbox-item">
+          <input type="checkbox" id="highlight-control" onchange="applyFilters()">
+          <label for="highlight-control">Highlight Control</label>
+        </div>
+      </div>
+
       <div id="filter-buttons">
         <button onclick="applyFilters()">Apply Filters</button>
         <button onclick="resetFilters()">Reset</button>
@@ -539,7 +546,8 @@
     let processedData = null;
     let currentFilters = {
       flags: new Set(),
-      startDate: null
+      startDate: null,
+      highlightControl: false
     };
 
     // Browser compatibility check
@@ -755,6 +763,9 @@
       // Update date filter
       currentFilters.startDate = document.getElementById('start-date').value;
 
+      // Update highlight control filter
+      currentFilters.highlightControl = document.getElementById('highlight-control').checked;
+
       renderVisualization();
     }
 
@@ -770,6 +781,10 @@
       // Reset dates
       document.getElementById('start-date').value = processedData.dateExtent[0];
       currentFilters.startDate = processedData.dateExtent[0];
+
+      // Reset highlight control
+      document.getElementById('highlight-control').checked = false;
+      currentFilters.highlightControl = false;
 
       renderVisualization();
     }
@@ -802,6 +817,37 @@
 
       svg.attr('width', containerWidth)
          .attr('height', height);
+
+      // Add glow filter for control highlighting
+      const defs = svg.append('defs');
+      const filter = defs.append('filter')
+        .attr('id', 'control-glow')
+        .attr('x', '-50%')
+        .attr('y', '-50%')
+        .attr('width', '200%')
+        .attr('height', '200%');
+
+      filter.append('feGaussianBlur')
+        .attr('in', 'SourceAlpha')
+        .attr('stdDeviation', '2');
+
+      filter.append('feOffset')
+        .attr('dx', '0')
+        .attr('dy', '0')
+        .attr('result', 'offsetblur');
+
+      filter.append('feFlood')
+        .attr('flood-color', '#000')
+        .attr('flood-opacity', '0.8');
+
+      filter.append('feComposite')
+        .attr('in2', 'offsetblur')
+        .attr('operator', 'in');
+
+      const feMerge = filter.append('feMerge');
+      feMerge.append('feMergeNode');
+      feMerge.append('feMergeNode')
+        .attr('in', 'SourceGraphic');
 
       // Scales
       const parseDate = d3.timeParse('%Y-%m-%d');
@@ -872,6 +918,8 @@
           let yOffset = 0;
           dayData.treatments.forEach(treatment => {
             const segmentHeight = (treatment.count / totalImpressions) * laneHeightActual;
+            const isControl = treatment.treatment.toLowerCase() === 'control';
+            const shouldHighlight = currentFilters.highlightControl && isControl;
 
             lane.append('rect')
               .attr('class', 'treatment-segment')
@@ -881,6 +929,9 @@
               .attr('height', segmentHeight)
               .attr('fill', treatment.color)
               .attr('opacity', opacityScale(treatment.count))
+              .attr('stroke', shouldHighlight ? '#000' : 'none')
+              .attr('stroke-width', shouldHighlight ? 3 : 0)
+              .style('filter', shouldHighlight ? 'url(#control-glow)' : 'none')
               .on('mouseover', function(event) {
                 tooltip
                   .style('opacity', 1)
